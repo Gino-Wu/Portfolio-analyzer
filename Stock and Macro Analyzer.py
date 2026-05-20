@@ -44,7 +44,20 @@ LANGUAGES = {
         "proj_engine": "💡 **Projection Engine:** Individual holdings grow at their specific yields. Your unallocated cash (new contributions minus margin interest) is assumed to grow at your portfolio's current weighted average yield of **{:.2f}%**.",
         "proj_chart_title": "Portfolio Composition Over Time (Individual Yield Models)",
         "proj_success": "📈 After **{} years**, contributing **NT${:,.0f}** yearly, your Net Equity is estimated to be **NT${:,.2f}**.",
-        "proj_warning": "Your total asset value is 0. Add holdings in the sidebar to see projections."
+        "proj_warning": "Your total asset value is 0. Add holdings in the sidebar to see projections.",
+        "macro_meter_title": "🌡️ Market Sentiment:",
+        "status_high_risk": "High Risk / Fear Driven (Protective assets and volatility are elevated)",
+        "status_complacent": "Over-Optimistic (Low volatility and low yields indicate market complacency)",
+        "status_neutral": "Neutral / Normal Environment",
+        "meter_reason": "Drivers:",
+        "rs_vix_high": "VIX > 25 (High Fear)",
+        "rs_vix_low": "VIX < 15 (Complacency)",
+        "rs_tnx_high": "10-Yr Yield > 4.5% (Tightening)",
+        "rs_tnx_low": "10-Yr Yield < 3.5% (Easing)",
+        "rs_oil_high": "Oil > $85 (Inflation Risk)",
+        "rs_oil_low": "Oil < $70 (Low Energy Cost)",
+        "rs_gold_high": "Gold Surge (Safe Haven Buying)",
+        "rs_gold_low": "Gold Weakness (Risk-On)"
     },
     "繁體中文": {
         "sb_header_1": "💼 投資組合輸入",
@@ -53,7 +66,7 @@ LANGUAGES = {
         "col_shares": "股數",
         "col_price": "平均買價",
         "col_leverage": "槓桿倍數",
-        "col_yield": "預期年化報酬率 %",
+        "col_yield": "預期殖利率 %",
         "col_yield_help": "手動覆寫自動計算的殖利率",
         "sb_header_2": "⚖️ 槓桿與債務",
         "margin_debt": "總融資/債務金額 (NT$)",
@@ -82,7 +95,20 @@ LANGUAGES = {
         "proj_engine": "💡 **預測引擎：** 個別持股將依據其專屬殖利率成長。您未分配的現金 (新投入資金減去融資利息) 預設將以目前投資組合的加權平均殖利率 **{:.2f}%** 進行成長。",
         "proj_chart_title": "投資組合隨時間的變化 (個別殖利率模型)",
         "proj_success": "📈 經過 **{} 年**，每年投入 **NT${:,.0f}**，您的預估淨值將達到 **NT${:,.2f}**。",
-        "proj_warning": "您的總資產價值為 0。請在側邊欄新增持股以查看預測結果。"
+        "proj_warning": "您的總資產價值為 0。請在側邊欄新增持股以查看預測結果。",
+        "macro_meter_title": "🌡️ 市場情緒指標：",
+        "status_high_risk": "高總經風險 / 恐慌主導 (避險資產與波動率偏高)",
+        "status_complacent": "過度樂觀 (低波動與低殖利率顯示市場可能忽視風險)",
+        "status_neutral": "中性 / 正常環境",
+        "meter_reason": "判斷依據：",
+        "rs_vix_high": "VIX > 25 (恐慌情緒高)",
+        "rs_vix_low": "VIX < 15 (市場過度自滿)",
+        "rs_tnx_high": "10年公債殖利率 > 4.5% (資金緊縮)",
+        "rs_tnx_low": "10年公債殖利率 < 3.5% (資金寬鬆)",
+        "rs_oil_high": "油價 > $85 (通膨風險升溫)",
+        "rs_oil_low": "油價 < $70 (能源成本低)",
+        "rs_gold_high": "金價飆升 (避險買盤湧入)",
+        "rs_gold_low": "金價疲軟 (市場偏好風險)"
     }
 }
 
@@ -134,7 +160,8 @@ def fetch_macro_data():
         "VIX": "^VIX",
         "US 10-Year Yield": "^TNX",
         "USD Index": "DX-Y.NYB",
-        "Brent Crude": "BZ=F" 
+        "Brent Crude": "BZ=F",
+        "Gold": "GC=F"
     }
     
     end_date = datetime.now()
@@ -363,8 +390,59 @@ with tab2:
     
     with st.spinner(t["fetching_macro"]):
         macro_hist, macro_current = fetch_macro_data()
+        
+    risk_score = 0
+    reasons = []
+
+    vix = macro_current.get("VIX")
+    if vix is not None and not np.isnan(vix):
+        if vix > 25:
+            risk_score += 1
+            reasons.append(t["rs_vix_high"])
+        elif vix < 15:
+            risk_score -= 1
+            reasons.append(t["rs_vix_low"])
+
+    tnx = macro_current.get("US 10-Year Yield")
+    if tnx is not None and not np.isnan(tnx):
+        if tnx > 4.5:
+            risk_score += 1
+            reasons.append(t["rs_tnx_high"])
+        elif tnx < 3.5:
+            risk_score -= 1
+            reasons.append(t["rs_tnx_low"])
+
+    oil = macro_current.get("Brent Crude")
+    if oil is not None and not np.isnan(oil):
+        if oil > 85:
+            risk_score += 1
+            reasons.append(t["rs_oil_high"])
+        elif oil < 70:
+            risk_score -= 1
+            reasons.append(t["rs_oil_low"])
+            
+    gold = macro_current.get("Gold")
+    if gold is not None and not np.isnan(gold) and "Gold" in macro_hist and not macro_hist["Gold"].empty:
+        gold_avg = macro_hist["Gold"].mean()
+        if gold > gold_avg * 1.05:
+            risk_score += 1
+            reasons.append(t["rs_gold_high"])
+        elif gold < gold_avg * 0.95:
+            risk_score -= 1
+            reasons.append(t["rs_gold_low"])
+
+    if risk_score >= 2:
+        st.error(f"**{t['macro_meter_title']}** {t['status_high_risk']}\n\n**{t['meter_reason']}** {', '.join(reasons)}")
+    elif risk_score <= -2:
+        st.warning(f"**{t['macro_meter_title']}** {t['status_complacent']}\n\n**{t['meter_reason']}** {', '.join(reasons)}")
+    else:
+        reason_str = ', '.join(reasons) if reasons else t["status_neutral"]
+        st.success(f"**{t['macro_meter_title']}** {t['status_neutral']}\n\n**{t['meter_reason']}** {reason_str}")
+
+    st.markdown("---")
     
-    m_col1, m_col2, m_col3, m_col4, m_col5 = st.columns(5)
+    m_col1, m_col2, m_col3 = st.columns(3)
+    m_col4, m_col5, m_col6 = st.columns(3)
     
     def format_metric(val, is_pct=False):
         if val is None or np.isnan(val): 
@@ -374,10 +452,12 @@ with tab2:
     m_col1.metric("S&P 500", format_metric(macro_current.get("S&P 500")))
     m_col2.metric("VIX (Volatility)", format_metric(macro_current.get("VIX")))
     m_col3.metric("US 10-Yr Yield", format_metric(macro_current.get("US 10-Year Yield"), True))
-    m_col4.metric("USD Index", format_metric(macro_current.get("USD Index")))
     
+    m_col4.metric("USD Index", format_metric(macro_current.get("USD Index")))
     oil_val = macro_current.get("Brent Crude")
     m_col5.metric("Brent Crude", f"${format_metric(oil_val)}" if oil_val is not None else "N/A")
+    gold_val = macro_current.get("Gold")
+    m_col6.metric("Gold (Futures)", f"${format_metric(gold_val)}" if gold_val is not None else "N/A")
     
     st.markdown("---")
     
@@ -407,13 +487,29 @@ with tab2:
             fig_tnx.update_yaxes(title="Yield (%)")
             chart_col1.plotly_chart(fig_tnx, use_container_width=True)
             
-        # USD Index & Brent Crude
+        # USD Index
         if "USD Index" in macro_hist and not macro_hist["USD Index"].empty:
             fig_usd = px.line(x=macro_hist["USD Index"].index, y=macro_hist["USD Index"].values, title="US Dollar Index (DXY)")
             fig_usd.update_traces(line_color='purple')
             fig_usd.update_xaxes(title="Date")
             fig_usd.update_yaxes(title="Index Value")
             chart_col2.plotly_chart(fig_usd, use_container_width=True)
+            
+        # Gold Chart
+        if "Gold" in macro_hist and not macro_hist["Gold"].empty:
+            fig_gold = px.line(x=macro_hist["Gold"].index, y=macro_hist["Gold"].values, title="Gold Futures (GC=F)")
+            fig_gold.update_traces(line_color='goldenrod')
+            fig_gold.update_xaxes(title="Date")
+            fig_gold.update_yaxes(title="Price (USD)")
+            chart_col1.plotly_chart(fig_gold, use_container_width=True)
+            
+        # Brent Crude Chart
+        if "Brent Crude" in macro_hist and not macro_hist["Brent Crude"].empty:
+            fig_oil = px.line(x=macro_hist["Brent Crude"].index, y=macro_hist["Brent Crude"].values, title="Brent Crude Oil")
+            fig_oil.update_traces(line_color='orange')
+            fig_oil.update_xaxes(title="Date")
+            fig_oil.update_yaxes(title="Price (USD)")
+            chart_col2.plotly_chart(fig_oil, use_container_width=True)
 
 with tab3:
     st.header(t["growth_header"])
