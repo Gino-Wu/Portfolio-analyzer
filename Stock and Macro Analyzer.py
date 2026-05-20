@@ -57,7 +57,9 @@ LANGUAGES = {
         "rs_oil_high": "Oil > $85 (Inflation Risk)",
         "rs_oil_low": "Oil < $70 (Low Energy Cost)",
         "rs_gold_high": "Gold Surge (Safe Haven Buying)",
-        "rs_gold_low": "Gold Weakness (Risk-On)"
+        "rs_gold_low": "Gold Weakness (Risk-On)",
+        "yield_auto": "Auto: 1-Yr",
+        "yield_custom": "Custom"
     },
     "繁體中文": {
         "sb_header_1": "💼 投資組合輸入",
@@ -108,7 +110,9 @@ LANGUAGES = {
         "rs_oil_high": "油價 > $85 (通膨風險升溫)",
         "rs_oil_low": "油價 < $70 (能源成本低)",
         "rs_gold_high": "金價飆升 (避險買盤湧入)",
-        "rs_gold_low": "金價疲軟 (市場偏好風險)"
+        "rs_gold_low": "金價疲軟 (市場偏好風險)",
+        "yield_auto": "自動: 近1年",
+        "yield_custom": "自訂"
     }
 }
 
@@ -366,11 +370,21 @@ with tab1:
         
         with col_table:
             st.subheader(t["holdings_detail"])
-            display_df = df_portfolio.drop(columns=['Custom Yield', 'Auto Yield (%)', 'Effective Exposure']).copy()
+            display_df = df_portfolio.drop(columns=['Effective Exposure']).copy()
             for col in ['Avg Price', 'Current Price', 'Total Value', 'Total Cost', 'P/L (NT$)']:
                 display_df[col] = display_df[col].apply(lambda x: f"NT${x:,.2f}")
             display_df['P/L (%)'] = display_df['P/L (%)'].apply(lambda x: f"{x:.2f}%")
-            display_df['Expected Yield (%)'] = display_df['Expected Yield (%)'].apply(lambda x: f"{x:.2f}%")
+            
+            # Format the Expected Yield to show where the number came from
+            def format_yield(row):
+                if pd.notna(row['Custom Yield']):
+                    return f"{row['Expected Yield (%)']:.2f}% ({t['yield_custom']})"
+                else:
+                    return f"{row['Expected Yield (%)']:.2f}% ({t['yield_auto']})"
+                    
+            display_df['Expected Yield (%)'] = display_df.apply(format_yield, axis=1)
+            display_df = display_df.drop(columns=['Custom Yield', 'Auto Yield (%)'])
+            
             display_df['Leverage'] = display_df['Leverage'].apply(lambda x: f"{x}x")
             
             st.dataframe(display_df, use_container_width=True, hide_index=True)
