@@ -53,7 +53,7 @@ LANGUAGES = {
         "col_shares": "股數",
         "col_price": "平均買價",
         "col_leverage": "槓桿倍數",
-        "col_yield": "預期殖利率 %",
+        "col_yield": "預期年畫報酬率 %",
         "col_yield_help": "手動覆寫自動計算的殖利率",
         "sb_header_2": "⚖️ 槓桿與債務",
         "margin_debt": "總融資/債務金額 (NT$)",
